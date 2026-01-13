@@ -14,7 +14,7 @@ engine = create_engine(DATABASE_URL)
 
 #CREATING SESSIONLOCAL
 
-SessionLocal= sessionmaker(autocommit=False,autoflash=False,bind=engine)
+SessionLocal= sessionmaker(autocommit=False,autoflush=False,bind=engine)
 
 #CREATING BASE
 BASE= declarative_base()
