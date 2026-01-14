@@ -29,7 +29,7 @@ def create_user_with_account(db:Session, user: schemas.UserCreate):
     #creating the user account
     new_account = models.Account(
         user_id= db_user.id,
-        balance= 0.00,
+        initial_balance= 0.00,
         account_number = "GROUP8-" + str(db_user.id).zfill(4)
      
     )

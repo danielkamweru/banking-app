@@ -11,10 +11,12 @@ class User(BASE):
     last_name = Column(String,nullable= False)
     email = Column(String,nullable=False)
     phone_number= Column(Integer,nullable=False)
-    hashed_pin = Column(Integer,nullable= False)
+    hashed_pin = Column(String,nullable= False)
     created_at = Column(DateTime, default= lambda: datetime.now(timezone.utc))
     
     #LINKING THE USER TO THEIR ACCOUNT
+
+    
     account = relationship("Account", back_populates="owner", uselist=False)
     
     
