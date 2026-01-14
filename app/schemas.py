@@ -20,6 +20,12 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+#userlogin
+class UserLogin(BaseModel):
+    email: EmailStr
+    pin: str
+
 # Define the Transaction record (The "Statement" line)
 class TransactionBase(BaseModel):
     id: int
