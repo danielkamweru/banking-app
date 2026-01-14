@@ -2,18 +2,12 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 
-# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT settings
-SECRET_KEY = "your-super-secret-key-here"  # 🔐 Replace with env var in production
+SECRET_KEY = "your-super-secret-key-here"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
-# -----------------------
-# PIN hashing functions
-# -----------------------
 def hash_pin(pin: str) -> str:
     return pwd_context.hash(pin)
 
@@ -21,10 +15,6 @@ def hash_pin(pin: str) -> str:
 def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
     return pwd_context.verify(plain_pin, hashed_pin)
 
-
-# -----------------------
-# JWT functions
-# -----------------------
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Creates a JWT access token with optional expiration.
