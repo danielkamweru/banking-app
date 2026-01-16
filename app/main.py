@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import engine, BASE, get_db
@@ -9,17 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
 
 #SECURITY & CONFIG
-SECRET_KEY = "BANK_PROJECT_2024_SECRET" 
+SECRET_KEY = os.getenv("SECRET_KEY", "BANK_PROJECT_2024_SECRET")
 ALGORITHM = "HS256"
 
 #  Full TEAM
-ADMIN_CC_LIST = [
-    "Ashley.mararo@student.moringaschool.com",
-    "david.kuron@student.moringaschool.com",
-    "yvonne.kadenyi@student.moringaschool.com",
-    "daniel.kamweru@student.moringaschool.com",
-    "thomas.mbula@student.moringaschool.com"
-]
+ADMIN_CC_LIST = os.getenv("ADMIN_CC_LIST", "Ashley.mararo@student.moringaschool.com,david.kuron@student.moringaschool.com,yvonne.kadenyi@student.moringaschool.com,daniel.kamweru@student.moringaschool.com,thomas.mbula@student.moringaschool.com").split(",")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
