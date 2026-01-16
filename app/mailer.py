@@ -92,3 +92,51 @@ async def send_transaction_email(
         print(f" SUCCESS: Email delivered to {email} and all {len(cc_emails)} team members.")
     except Exception as e:
         print(f" SMTP ERROR: {e}")
+
+async def send_welcome_email(email: EmailStr, name: str, account_number: str):
+    subject = "Welcome to Group8 Bank"
+    
+    html = f"""
+    <html>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 20px auto; border: 1px solid #dcdcdc; border-radius: 10px; overflow: hidden;">
+                <div style="background-color: #2c3e50; color: #ffffff; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0;">Welcome to Group8 Bank</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p>Dear <strong>{name}</strong>,</p>
+                    <p>Welcome to Group8 Bank! Your account has been successfully created.</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>Account Number:</strong></td>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: bold;">
+                                {account_number}
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <p>Thank you for choosing Group8 Bank.</p>
+                </div>
+                <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 11px; color: #777;">
+                    Group8 Bank - Your trusted banking partner
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+
+    message = MessageSchema(
+        subject=subject,
+        recipients=[email],
+        body=html,
+        subtype=MessageType.html
+    )
+
+    fm = FastMail(conf)
+    
+    try:
+        await fm.send_message(message)
+        print(f" SUCCESS: Welcome email sent to {email}")
+    except Exception as e:
+        print(f" SMTP ERROR: {e}")
