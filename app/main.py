@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from app.database import engine, BASE, get_db
 from app.models import User, Account
 from app import crud, schemas, security
-from app.mailer import send_transaction_email 
+from app.mailer import send_transaction_email, send_welcome_email
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
 
 #SECURITY & CONFIG
@@ -20,7 +21,7 @@ ADMIN_CC_LIST = [
     "thomas.mbula@student.moringaschool.com"
 ]
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 #  DATABASE SYNC
 print(" DATABASE SYNC STARTING ")
@@ -31,6 +32,15 @@ except Exception as e:
     print(f" ERROR CREATING TABLES: {e} ")
 
 app = FastAPI(title="Money Transfer API")
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # AUTHENTICATION DEPENDENCY
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -51,11 +61,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 # AUTH ROUTES
 
-@app.post("/signup", response_model=schemas.UserResponse)
-def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    return crud.create_user_with_account(db=db, user=user)
+@app.post("/api/auth/signup", response_model=schemas.UserResponse)
+async def signup(user: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    new_user = crud.create_user_with_account(db=db, user=user)
 
-@app.post("/login")
+    # Get the account to ensure it's loaded
+    account = db.query(Account).filter(Account.user_id == new_user.id).first()
+
+    background_tasks.add_task(
+        send_welcome_email,
+        email=new_user.email,
+        name=f"{new_user.first_name} {new_user.last_name}",
+        account_number=account.account_number if account else "N/A"
+    )
+
+    return new_user
+
+@app.post("/api/auth/login")
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
     if not user or not security.verify_pin(user_credentials.pin, user.hashed_pin):
@@ -64,21 +86,25 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     access_token = security.create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# USER MANAGEMENT ROUTES 
+# USER MANAGEMENT ROUTES
 
-@app.put("/users/me", response_model=schemas.UserResponse)
+@app.get("/api/users/me", response_model=schemas.UserResponse)
+def get_current_user_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return current_user
+
+@app.put("/api/users/me", response_model=schemas.UserResponse)
 def update_profile(
-    update_data: schemas.UserUpdate, 
-    db: Session = Depends(get_db), 
+    update_data: schemas.UserUpdate,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Update first name, last name, or email"""
     return crud.update_user_profile(db, current_user.id, update_data)
 
-@app.patch("/users/me/reset-pin")
+@app.patch("/api/users/me/reset-pin")
 def reset_pin(
-    pin_data: schemas.PinReset, 
-    db: Session = Depends(get_db), 
+    pin_data: schemas.PinReset,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Reset the user's PIN"""
@@ -87,9 +113,9 @@ def reset_pin(
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "PIN updated successfully. Use your new PIN for the next login."}
 
-@app.delete("/users/me")
+@app.delete("/api/users/me")
 def delete_account(
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Delete the current user and their account"""
@@ -98,20 +124,20 @@ def delete_account(
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "Account successfully deleted."}
 
-# BANKING ROUTES 
+# BANKING ROUTES
 
-@app.post("/deposit")
+@app.post("/api/transactions/deposit")
 async def deposit(
-    deposit_data: schemas.DepositCreate, 
-    background_tasks: BackgroundTasks, 
-    db: Session = Depends(get_db), 
+    deposit_data: schemas.DepositCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if deposit_data.amount <= 0:
         raise HTTPException(status_code=400, detail="Deposit amount must be positive")
-    
+
     account = crud.deposit_funds(db, current_user.id, deposit_data.amount)
-    
+
     background_tasks.add_task(
         send_transaction_email,
         email=current_user.email,
@@ -121,18 +147,18 @@ async def deposit(
         type="Deposit",
         cc_emails=ADMIN_CC_LIST
     )
-    
+
     return {
-        "message": f"Deposit successful. Confirmation email sent.", 
+        "message": f"Deposit successful. Confirmation email sent.",
         "new_balance": account.initial_balance,
         "account_number": account.account_number
     }
 
-@app.post("/transfer")
+@app.post("/api/transactions/transfer")
 async def transfer(
-    transfer_data: schemas.TransferCreate, 
+    transfer_data: schemas.TransferCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     sender_account = db.query(Account).filter(Account.user_id == current_user.id).first()
@@ -140,12 +166,12 @@ async def transfer(
         raise HTTPException(status_code=404, detail="Sender account not found")
 
     result = crud.transfer_money(
-        db=db, 
-        sender_account_id=sender_account.id, 
-        receiver_acc_number=transfer_data.receiver_acc_number, 
+        db=db,
+        sender_account_id=sender_account.id,
+        receiver_acc_number=transfer_data.receiver_acc_number,
         amount=transfer_data.amount
     )
-    
+
     background_tasks.add_task(
         send_transaction_email,
         email=current_user.email,
@@ -155,10 +181,10 @@ async def transfer(
         type="Transfer",
         cc_emails=ADMIN_CC_LIST
     )
-    
+
     return result
 
-@app.get("/my-transactions", response_model=list[schemas.TransactionBase])
+@app.get("/api/transactions", response_model=list[schemas.TransactionBase])
 def read_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return crud.get_user_transactions(db, user_id=current_user.id)
 

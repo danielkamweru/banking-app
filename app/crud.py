@@ -6,19 +6,24 @@ from fastapi import HTTPException, status
 # USER & ACCOUNT CREATION
 
 def create_user_with_account(db: Session, user: schemas.UserCreate):
+    # Check if user with this email already exists
+    existing_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
     hashed_pin = security.hash_pin(user.pin)
-    
+
     db_user = models.User(
         first_name=user.first_name,
         last_name=user.last_name,
         email=user.email,
         hashed_pin=hashed_pin
     )
-    
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     new_account = models.Account(
         user_id=db_user.id,
         initial_balance=0.00,
@@ -26,8 +31,10 @@ def create_user_with_account(db: Session, user: schemas.UserCreate):
     )
     db.add(new_account)
     db.commit()
+    db.refresh(new_account)  # Refresh the account instead
+
+    # Load the account relationship
     db.refresh(db_user)
-    
     return db_user
 
 # USER MANAGEMENT
@@ -60,7 +67,11 @@ def delete_user_and_account(db: Session, user_id: int):
     """Deletes a user and their associated account/transactions."""
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if db_user:
-        
+        # Delete associated account first
+        db_account = db.query(models.Account).filter(models.Account.user_id == user_id).first()
+        if db_account:
+            db.delete(db_account)
+        # Delete the user
         db.delete(db_user)
         db.commit()
         return True

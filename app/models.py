@@ -5,11 +5,11 @@ from sqlalchemy.orm import relationship
 
 class User(BASE):
     __tablename__ = "users"
-    
+
     id = Column(Integer,primary_key=True,index=True)
     first_name = Column(String,nullable= False)
     last_name = Column(String,nullable= False)
-    email = Column(String,nullable=False)
+    email = Column(String,nullable=False, unique=True, index=True)
     hashed_pin = Column(String,nullable= False)
     created_at = Column(DateTime, default= lambda: datetime.now(timezone.utc))
     

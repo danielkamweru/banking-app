@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 
 # Password hashing configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # SECURITY CONSTANTS
 SECRET_KEY = "BANK_PROJECT_2024_SECRET" 
@@ -12,7 +12,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def hash_pin(pin: str) -> str:
     """Hashes the PIN for secure storage."""
-    return pwd_context.hash(pin)
+    return pwd_context.hash(pin[:72])
 
 def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
     """Verifies a plain PIN against the stored hash."""
