@@ -8,9 +8,9 @@ from sqlalchemy.orm import sessionmaker,declarative_base
 load_dotenv()
 DATABASE_URL=os.getenv('DATABASE_URL')
 
-# Fix for Render.com postgres:// to postgresql://
+# Fix for Render.com postgres:// to postgresql+psycopg://
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
 
 #creating an engine
 engine = create_engine(DATABASE_URL)
