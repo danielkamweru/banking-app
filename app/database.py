@@ -3,19 +3,18 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker,declarative_base
 
-#loading files from .env file
+#loading files from .env file only in local development
+if os.getenv("RENDER") is None:
+    load_dotenv()
 
-load_dotenv()
-DATABASE_URL=os.getenv('DATABASE_URL')
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Fix for Render.com postgres:// to postgresql+psycopg://
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
-elif DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
 
 #creating an engine
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 
 #CREATING SESSIONLOCAL
