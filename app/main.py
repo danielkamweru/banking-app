@@ -8,9 +8,10 @@ from app.mailer import send_transaction_email, send_welcome_email
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError as JoseJWTError
 
 #SECURITY & CONFIG
-SECRET_KEY = os.getenv("SECRET_KEY", "BANK_PROJECT_2024_SECRET")
+SECRET_KEY = os.getenv("SECRET_KEY", "BANK_PROJECT_2024_SECRET_KEY_FOR_PRODUCTION")
 ALGORITHM = "HS256"
 
 #  Full TEAM
@@ -45,14 +46,32 @@ app.add_middleware(
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except JoseJWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    user_id = payload.get("sub")
+
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")

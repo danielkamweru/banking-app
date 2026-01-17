@@ -12,13 +12,16 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is missing!")
 
 # Fix for Render.com postgres:// to postgresql+psycopg://
-if DATABASE_URL.startswith('postgres://'):
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
-elif DATABASE_URL.startswith('postgresql://'):
+elif DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
     DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
 
 #creating an engine
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+if DATABASE_URL and 'sqlite' in DATABASE_URL:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 
 #CREATING SESSIONLOCAL

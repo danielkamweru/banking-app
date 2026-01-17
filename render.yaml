@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: banking-app-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_CC_LIST
+        value: Ashley.mararo@student.moringaschool.com,david.kuron@student.moringaschool.com,yvonne.kadenyi@student.moringaschool.com,daniel.kamweru@student.moringaschool.com,thomas.mbula@student.moringaschool.com
+
+databases:
+  - name: banking-app-db
+    databaseName: banking_app
+    user: banking_user
