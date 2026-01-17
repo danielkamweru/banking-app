@@ -7,7 +7,9 @@ from sqlalchemy.orm import sessionmaker,declarative_base
 if os.getenv("RENDER") is None:
     load_dotenv()
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is missing!")
 
 # Fix for Render.com postgres:// to postgresql+psycopg://
 if DATABASE_URL.startswith('postgres://'):
