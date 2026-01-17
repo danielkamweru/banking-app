@@ -31,7 +31,7 @@ app = FastAPI(title="Money Transfer API")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["http://localhost:5173", "https://banking-app-frontend.onrender.com"],  # Allow specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
