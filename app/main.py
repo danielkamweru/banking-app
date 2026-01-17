@@ -28,6 +28,10 @@ except Exception as e:
 
 app = FastAPI(title="Money Transfer API")
 
+@app.get("/")
+def read_root():
+    return {"message": "Banking App API is live!"}
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
