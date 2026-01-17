@@ -38,7 +38,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://daniel-david-banking-app-frontend-8ktp8muu8.vercel.app",
+        "https://daniel-david-banking-app-frontend.vercel.app",
     ],
     allow_credentials=False,
     allow_methods=["*"],
