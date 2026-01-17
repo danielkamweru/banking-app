@@ -35,7 +35,7 @@ def read_root():
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://banking-app-frontend.onrender.com"],  # Allow specific origins
+    allow_origins=["http://localhost:5173", "https://banking-app-frontend.onrender.com", "https://daniel-david-banking-app-frontend.vercel.app"],  # Allow specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
