@@ -28,15 +28,15 @@ except Exception as e:
 
 app = FastAPI(title="Money Transfer API")
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Banking App API is live!"}
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://banking-app-frontend.onrender.com", "https://daniel-david-banking-app-frontend.vercel.app"],  # Allow specific origins
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for testing
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
