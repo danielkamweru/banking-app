@@ -11,11 +11,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is missing!")
 
-# Fix for Render.com postgres:// to postgresql+psycopg://
+# Fix for Render.com postgres:// to postgresql://
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
-elif DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 #creating an engine
 if DATABASE_URL and 'sqlite' in DATABASE_URL:
