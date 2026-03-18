@@ -18,7 +18,6 @@ class User(BASE):
     
     account = relationship("Account", back_populates="owner", uselist=False)
     
-    
 
 
 class Account(BASE):
