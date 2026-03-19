@@ -19,14 +19,6 @@ ADMIN_CC_LIST = os.getenv("ADMIN_CC_LIST", "Ashley.mararo@student.moringaschool.
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-#  DATABASE SYNC
-print(" DATABASE SYNC STARTING ")
-try:
-    BASE.metadata.create_all(bind=engine)
-    print("DATABASE TABLES VERIFIED ")
-except Exception as e:
-    print(f" ERROR CREATING TABLES: {e} ")
-
 app = FastAPI(title="Money Transfer API")
 
 if __name__ == "__main__":
