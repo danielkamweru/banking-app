@@ -23,15 +23,53 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 app = FastAPI(title="Money Transfer API")
 
-# Auto-run migrations on startup
+# Auto-run migrations and schema fix on startup
 @app.on_event("startup")
 async def startup_event():
     try:
+        # Run Alembic migrations first
         alembic_cfg = alembic.config.Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
         from alembic import command
         command.upgrade(alembic_cfg, "head")
         print("✅ Database migrations completed successfully")
+        
+        # Run schema fix to ensure all columns exist
+        from sqlalchemy import create_engine, text
+        
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+            
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                # Check and add missing columns
+                columns_result = conn.execute(text("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'users' AND table_schema = 'public'
+                """))
+                existing_columns = {row[0] for row in columns_result}
+                
+                required_columns = ['first_name', 'last_name', 'email', 'hashed_pin', 'created_at']
+                
+                for col in required_columns:
+                    if col not in existing_columns:
+                        print(f"➕ Adding missing column: {col}")
+                        if col in ['first_name', 'last_name']:
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR NOT NULL DEFAULT 'Unknown'"))
+                        elif col == 'created_at':
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                        else:
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR NOT NULL"))
+                
+                trans.commit()
+                print("✅ Schema verification completed")
+            except Exception as e:
+                trans.rollback()
+                print(f"⚠️ Schema fix warning: {e}")
+                
     except Exception as e:
         print(f"❌ Migration error: {e}")
 
