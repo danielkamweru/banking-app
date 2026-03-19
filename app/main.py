@@ -1,5 +1,5 @@
 import os
-from FastAPI import FastAPI, Depends, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import engine, BASE, get_db
 from app.models import User, Account
