@@ -2,11 +2,13 @@ services:
   - type: web
     name: banking-app-api
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: banking-app-db
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_CC_LIST
