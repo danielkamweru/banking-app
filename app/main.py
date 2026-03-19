@@ -54,6 +54,7 @@ def get_cors_origins():
         # Production environment - specific origins only
         origins = [
             "https://daniel-david-banking-app-frontend-rgbp9hi4n.vercel.app",
+            "https://daniel-david-banking-app-frontend-one.vercel.app",
             "https://banking-app-46l2.onrender.com",
         ]
     else:
