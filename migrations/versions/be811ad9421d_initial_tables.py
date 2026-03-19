@@ -20,10 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    existing_tables = inspector.get_table_names()
-    if 'users' in existing_tables:
-        return
+    # Drop all tables to ensure clean schema
+    conn.execute(sa.text("DROP TABLE IF EXISTS transactions CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS accounts CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS users CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version CASCADE"))
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=False),
