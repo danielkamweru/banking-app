@@ -53,14 +53,16 @@ async def startup_event():
                 existing_columns = {row[0] for row in columns_result}
                 print(f"📋 Existing columns: {sorted(existing_columns)}")
                 
-                # Handle problematic username column if it exists
-                if 'username' in existing_columns:
-                    print("🔧 Fixing username column constraint...")
-                    try:
-                        conn.execute(text("ALTER TABLE users ALTER COLUMN username DROP NOT NULL"))
-                        print("✅ Removed NOT NULL constraint from username column")
-                    except Exception as e:
-                        print(f"⚠️ Could not fix username constraint: {e}")
+                # Handle problematic columns if they exist
+                problematic_columns = ['username', 'hashed_password']
+                for col in problematic_columns:
+                    if col in existing_columns:
+                        print(f"🔧 Fixing {col} column constraint...")
+                        try:
+                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} DROP NOT NULL"))
+                            print(f"✅ Removed NOT NULL constraint from {col} column")
+                        except Exception as e:
+                            print(f"⚠️ Could not fix {col} constraint: {e}")
                 
                 required_columns = ['first_name', 'last_name', 'email', 'hashed_pin', 'created_at']
                 
