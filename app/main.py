@@ -208,6 +208,13 @@ async def transfer(
 def read_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return crud.get_user_transactions(db, user_id=current_user.id)
 
+@app.get("/reset-db")
+def reset_db():
+    from app.database import BASE, engine
+    BASE.metadata.drop_all(bind=engine)
+    BASE.metadata.create_all(bind=engine)
+    return {"message": "Database reset successfully"}
+
 @app.get("/force-reset")
 def force_reset(db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == "premiumresearch5@gmail.com").first()
