@@ -29,6 +29,16 @@ except Exception as e:
 
 app = FastAPI(title="Money Transfer API")
 
+if __name__ == "__main__":
+    import uvicorn
+    import socket
+    port = 8000
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            import subprocess, sys
+            subprocess.run(["fuser", "-k", f"{port}/tcp"])
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+
 @app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Banking App API is live!"}
@@ -43,7 +53,7 @@ def get_cors_origins():
     if is_production:
         # Production environment - specific origins only
         origins = [
-            "https://daniel-david-banking-app-frontend.vercel.app",
+            "https://daniel-david-banking-app-frontend-rgbp9hi4n.vercel.app/",
             "https://banking-app-2-eyu9.onrender.com",
         ]
     else:
