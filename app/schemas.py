@@ -4,8 +4,8 @@ from datetime import datetime
 
 # ACCOUNT SCHEMAS
 class AccountResponse(BaseModel):
-    account_number: str
-    initial_balance: float
+    account_number: Optional[str] = None
+    initial_balance: float = 0.0
 
     class Config:
         from_attributes = True

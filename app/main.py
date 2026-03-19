@@ -90,19 +90,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 @app.post("/api/auth/signup", response_model=schemas.UserResponse)
 async def signup(user: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    new_user = crud.create_user_with_account(db=db, user=user)
-
-    # Get the account to ensure it's loaded
-    account = db.query(Account).filter(Account.user_id == new_user.id).first()
-
-    background_tasks.add_task(
-        send_welcome_email,
-        email=new_user.email,
-        name=f"{new_user.first_name} {new_user.last_name}",
-        account_number=account.account_number if account else "N/A"
-    )
-
-    return new_user
+    try:
+        new_user = crud.create_user_with_account(db=db, user=user)
+        account = db.query(Account).filter(Account.user_id == new_user.id).first()
+        background_tasks.add_task(
+            send_welcome_email,
+            email=new_user.email,
+            name=f"{new_user.first_name} {new_user.last_name}",
+            account_number=account.account_number if account else "N/A"
+        )
+        return new_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/login")
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
