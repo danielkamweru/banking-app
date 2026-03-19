@@ -9,6 +9,8 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
 from jose.exceptions import ExpiredSignatureError, JWTError as JoseJWTError
+import alembic.config
+import os
 
 #SECURITY & CONFIG
 SECRET_KEY = os.getenv("SECRET_KEY", "BANK_PROJECT_2024_SECRET_KEY_FOR_PRODUCTION")
@@ -20,6 +22,18 @@ ADMIN_CC_LIST = os.getenv("ADMIN_CC_LIST", "Ashley.mararo@student.moringaschool.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 app = FastAPI(title="Money Transfer API")
+
+# Auto-run migrations on startup
+@app.on_event("startup")
+async def startup_event():
+    try:
+        alembic_cfg = alembic.config.Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+        from alembic import command
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Database migrations completed successfully")
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
 
 if __name__ == "__main__":
     import uvicorn
