@@ -58,11 +58,19 @@ async def startup_event():
                     if col not in existing_columns:
                         print(f"➕ Adding missing column: {col}")
                         if col in ['first_name', 'last_name']:
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR NOT NULL DEFAULT 'Unknown'"))
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'Unknown'"))
+                            conn.execute(text(f"UPDATE users SET {col} = 'Unknown' WHERE {col} IS NULL"))
+                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
                         elif col == 'created_at':
                             conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                        elif col == 'hashed_pin':
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'temp_hash'"))
+                            conn.execute(text(f"UPDATE users SET {col} = 'temp_hash' WHERE {col} IS NULL"))
+                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
                         else:
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR NOT NULL"))
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT ''"))
+                            conn.execute(text(f"UPDATE users SET {col} = '' WHERE {col} IS NULL"))
+                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
                 
                 trans.commit()
                 print("✅ Schema verification completed")
