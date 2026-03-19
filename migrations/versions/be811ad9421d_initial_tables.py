@@ -19,12 +19,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Drop all tables to ensure clean schema (compatible with SQLite)
     conn = op.get_bind()
-    # Drop all tables to ensure clean schema
-    conn.execute(sa.text("DROP TABLE IF EXISTS transactions CASCADE"))
-    conn.execute(sa.text("DROP TABLE IF EXISTS accounts CASCADE"))
-    conn.execute(sa.text("DROP TABLE IF EXISTS users CASCADE"))
-    conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version CASCADE"))
+    try:
+        conn.execute(sa.text("DROP TABLE IF EXISTS transactions"))
+    except:
+        pass
+    try:
+        conn.execute(sa.text("DROP TABLE IF EXISTS accounts"))
+    except:
+        pass
+    try:
+        conn.execute(sa.text("DROP TABLE IF EXISTS users"))
+    except:
+        pass
+    try:
+        conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
+    except:
+        pass
+    
+    # Create alembic_version table first
+    op.execute("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)")
+    op.execute("DELETE FROM alembic_version")  # Clear any existing entries
+    op.execute("INSERT INTO alembic_version (version_num) VALUES ('be811ad9421d')")
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=False),
