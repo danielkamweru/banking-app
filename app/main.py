@@ -43,40 +43,10 @@ if __name__ == "__main__":
 def read_root():
     return {"message": "Banking App API is live!"}
 
-# CORS - Environment-aware configuration
-import os
-
-def get_cors_origins():
-    """Get allowed origins based on environment"""
-    is_production = os.getenv("RENDER") is not None
-    
-    if is_production:
-        # Production environment - specific origins only
-        origins = [
-            "https://daniel-david-banking-app-frontend-rgbp9hi4n.vercel.app",
-            "https://daniel-david-banking-app-frontend-one.vercel.app",
-            "https://banking-app-46l2.onrender.com",
-        ]
-    else:
-        # Development environment - allow all localhost origins
-        origins = [
-            "http://localhost:5173",
-            "http://localhost:5174", 
-            "http://localhost:3000",
-            "http://localhost:8080",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5174",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:8080",
-        ]
-    
-    print(f"CORS Origins ({'production' if is_production else 'development'}): {origins}")
-    return origins
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
