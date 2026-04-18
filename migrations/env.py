@@ -10,9 +10,6 @@ from os.path import abspath, dirname
 from app.database import BASE
 from app.models import User, Account, Transaction
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
@@ -20,8 +17,9 @@ sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override the sqlalchemy.url with DATABASE_URL from .env
-config.set_main_option("sqlalchemy.url", os.getenv('DATABASE_URL'))
+# Override the sqlalchemy.url with DATABASE_URL from environment
+from os import getenv
+config.set_main_option("sqlalchemy.url", getenv("DATABASE_URL"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

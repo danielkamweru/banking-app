@@ -5,10 +5,9 @@ Simple startup script that just starts the server
 import os
 import subprocess
 import sys
-from dotenv import load_dotenv
 
 def main():
-    load_dotenv()
+    # Use Render environment variables instead of .env file
     
     print("=== Simple Banking App Startup ===")
     print(f"PORT: {os.getenv('PORT', '8000')}")

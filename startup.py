@@ -93,8 +93,7 @@ def start_server():
 def main():
     """Main startup function"""
     try:
-        print("Loading environment variables...")
-        load_dotenv()
+        print("Using Render environment variables...")
         
         print("=== Banking App Startup ===")
         print(f"Current working directory: {os.getcwd()}")
