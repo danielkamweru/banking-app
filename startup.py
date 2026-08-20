@@ -13,14 +13,9 @@ def wait_for_database():
     """Wait for database to be available"""
     from sqlalchemy import create_engine, text
     from sqlalchemy.exc import OperationalError
-    
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL environment variable is missing!")
-    
-    # Fix for Render.com postgres:// to postgresql://
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    from app.database import DATABASE_URL, database_diagnostic
+
+    print(f"Database configuration: {database_diagnostic(DATABASE_URL)}")
     
     max_retries = 10
     retry_interval = 5

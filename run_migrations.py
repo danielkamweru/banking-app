@@ -17,6 +17,7 @@ def run_migrations():
     """Run Alembic migrations with retry logic"""
     import alembic.config
     from sqlalchemy import create_engine, text
+    from app.database_config import database_diagnostic, get_database_url
     
     max_retries = 5
     retry_count = 0
@@ -25,21 +26,8 @@ def run_migrations():
         try:
             print(f"\n🚀 Running migrations (Attempt {retry_count + 1}/{max_retries})")
             
-            DATABASE_URL = os.getenv("DATABASE_URL")
-            if not DATABASE_URL:
-                print("❌ DATABASE_URL environment variable not set!")
-                sys.exit(1)
-            
-            # Fix postgres:// to postgresql://
-            if DATABASE_URL.startswith('postgres://'):
-                DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-                print("✅ Fixed postgres:// -> postgresql://")
-            
-            # Add SSL settings
-            if '?' not in DATABASE_URL:
-                DATABASE_URL = DATABASE_URL + "?sslmode=prefer"
-            elif 'sslmode' not in DATABASE_URL:
-                DATABASE_URL = DATABASE_URL + "&sslmode=prefer"
+            DATABASE_URL = get_database_url()
+            print(f"Database configuration: {database_diagnostic(DATABASE_URL)}")
             
             # Test connection first
             print("🔗 Testing database connection...")

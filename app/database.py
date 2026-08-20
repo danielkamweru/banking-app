@@ -2,24 +2,14 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker,declarative_base
+from app.database_config import database_diagnostic, get_database_url
 
 #loading files from .env file only in local development
 if os.getenv("RENDER") is None:
     load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is missing!")
-
-# Fix for Render.com postgres:// to postgresql://
-if DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-
-# Add SSL settings for Render's PostgreSQL (use prefer for resilience)
-if '?' not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL + "?sslmode=prefer"
-elif 'sslmode' not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL + "&sslmode=prefer"
+DATABASE_URL = get_database_url()
+print(f"Database configuration: {database_diagnostic(DATABASE_URL)}")
 
 engine = create_engine(
     DATABASE_URL, 

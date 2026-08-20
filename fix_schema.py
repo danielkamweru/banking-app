@@ -5,17 +5,11 @@ Direct schema fix for production database
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from app.database import BASE
+from app.database import BASE, DATABASE_URL, database_diagnostic
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is missing!")
-
-# Fix for Render.com postgres:// to postgresql://
-if DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+print(f"Database configuration: {database_diagnostic(DATABASE_URL)}")
 
 def fix_database_schema():
     engine = create_engine(DATABASE_URL)

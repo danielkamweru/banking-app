@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.database import engine, BASE, get_db
+from app.database import DATABASE_URL, database_diagnostic, engine, BASE, get_db
 from app.models import User, Account
 from app import crud, schemas, security
 from app.mailer import send_transaction_email, send_welcome_email
@@ -38,23 +38,7 @@ async def startup_event():
         try:
             print(f"\n🚀 Startup event initiated (Attempt {retry_count + 1}/{max_retries})")
             
-            DATABASE_URL = os.getenv("DATABASE_URL")
-            if not DATABASE_URL:
-                print("❌ DATABASE_URL environment variable not set!")
-                break
-            
-            # Fix postgres:// to postgresql://
-            if DATABASE_URL.startswith('postgres://'):
-                DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-                print("✅ Fixed postgres:// -> postgresql://")
-            
-            # Add SSL settings - use prefer instead of require for more resilience
-            if '?' not in DATABASE_URL:
-                DATABASE_URL = DATABASE_URL + "?sslmode=prefer"
-            elif 'sslmode' not in DATABASE_URL:
-                DATABASE_URL = DATABASE_URL + "&sslmode=prefer"
-            
-            print("✅ SSL mode configured: prefer")
+            print(f"Database configuration: {database_diagnostic(DATABASE_URL)}")
             
             # Test basic connection first
             print("🔗 Testing database connection...")
