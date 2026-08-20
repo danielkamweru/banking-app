@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.database import engine, BASE, get_db
 from app.models import User, Account
 from app import crud, schemas, security
@@ -26,84 +27,165 @@ app = FastAPI(title="Money Transfer API")
 # Auto-run migrations and schema fix on startup
 @app.on_event("startup")
 async def startup_event():
-    try:
-        # Run Alembic migrations first
-        alembic_cfg = alembic.config.Config("alembic.ini")
-        
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-        
-        # Add SSL settings for Render's PostgreSQL
-        if DATABASE_URL and '?' not in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL + "?sslmode=require"
-        elif DATABASE_URL and 'sslmode' not in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL + "&sslmode=require"
-        
-        alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
-        from alembic import command
-        command.upgrade(alembic_cfg, "head")
-        print("✅ Database migrations completed successfully")
-        
-        # Run schema fix to ensure all columns exist
-        from sqlalchemy import create_engine, text
-        
-        engine = create_engine(
-            DATABASE_URL,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            connect_args={"connect_timeout": 10, "sslmode": "require"}
-        )
-        with engine.connect() as conn:
-            trans = conn.begin()
+    import time
+    from sqlalchemy import create_engine, text, event
+    from sqlalchemy.pool import Pool
+    
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            print(f"\n🚀 Startup event initiated (Attempt {retry_count + 1}/{max_retries})")
+            
+            DATABASE_URL = os.getenv("DATABASE_URL")
+            if not DATABASE_URL:
+                print("❌ DATABASE_URL environment variable not set!")
+                break
+            
+            # Fix postgres:// to postgresql://
+            if DATABASE_URL.startswith('postgres://'):
+                DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+                print("✅ Fixed postgres:// -> postgresql://")
+            
+            # Add SSL settings - use prefer instead of require for more resilience
+            if '?' not in DATABASE_URL:
+                DATABASE_URL = DATABASE_URL + "?sslmode=prefer"
+            elif 'sslmode' not in DATABASE_URL:
+                DATABASE_URL = DATABASE_URL + "&sslmode=prefer"
+            
+            print("✅ SSL mode configured: prefer")
+            
+            # Test basic connection first
+            print("🔗 Testing database connection...")
+            test_engine = create_engine(
+                DATABASE_URL,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                connect_args={
+                    "connect_timeout": 15,
+                    "keepalives": 1,
+                    "keepalives_idle": 30,
+                }
+            )
+            
+            # Add event listener for connection issues
+            @event.listens_for(Pool, "connect")
+            def receive_connect(dbapi_conn, connection_record):
+                print("✅ Database connection established")
+            
+            with test_engine.connect() as conn:
+                result = conn.execute(text("SELECT 1"))
+                print("✅ Database connection validated successfully")
+            
+            # Run migrations only if connection is verified
+            print("\n📦 Running Alembic migrations...")
             try:
-                # Check and add missing columns
-                columns_result = conn.execute(text("""
-                    SELECT column_name FROM information_schema.columns 
-                    WHERE table_name = 'users' AND table_schema = 'public'
-                """))
-                existing_columns = {row[0] for row in columns_result}
-                print(f"📋 Existing columns: {sorted(existing_columns)}")
+                alembic_cfg = alembic.config.Config("alembic.ini")
+                alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+                from alembic import command
+                command.upgrade(alembic_cfg, "head")
+                print("✅ Database migrations completed successfully")
+            except Exception as migration_error:
+                print(f"⚠️ Migration warning (continuing anyway): {migration_error}")
+            
+            # Run schema fix to ensure all columns exist
+            print("\n🔧 Running schema verification...")
+            try:
+                schema_engine = create_engine(
+                    DATABASE_URL,
+                    pool_pre_ping=True,
+                    pool_recycle=3600,
+                    connect_args={
+                        "connect_timeout": 15,
+                        "keepalives": 1,
+                        "keepalives_idle": 30,
+                    }
+                )
                 
-                # Handle problematic columns if they exist
-                problematic_columns = ['username', 'hashed_password']
-                for col in problematic_columns:
-                    if col in existing_columns:
-                        print(f"🔧 Fixing {col} column constraint...")
-                        try:
-                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} DROP NOT NULL"))
-                            print(f"✅ Removed NOT NULL constraint from {col} column")
-                        except Exception as e:
-                            print(f"⚠️ Could not fix {col} constraint: {e}")
-                
-                required_columns = ['first_name', 'last_name', 'email', 'hashed_pin', 'created_at']
-                
-                for col in required_columns:
-                    if col not in existing_columns:
-                        print(f"➕ Adding missing column: {col}")
-                        if col in ['first_name', 'last_name']:
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'Unknown'"))
-                            conn.execute(text(f"UPDATE users SET {col} = 'Unknown' WHERE {col} IS NULL"))
-                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
-                        elif col == 'created_at':
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                        elif col == 'hashed_pin':
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'temp_hash'"))
-                            conn.execute(text(f"UPDATE users SET {col} = 'temp_hash' WHERE {col} IS NULL"))
-                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
+                with schema_engine.connect() as conn:
+                    trans = conn.begin()
+                    try:
+                        # Check if users table exists
+                        table_check = conn.execute(text("""
+                            SELECT EXISTS (
+                                SELECT 1 FROM information_schema.tables 
+                                WHERE table_name = 'users' AND table_schema = 'public'
+                            )
+                        """))
+                        table_exists = table_check.scalar()
+                        
+                        if not table_exists:
+                            print("⚠️ Users table does not exist yet (migrations may still be running)")
+                            trans.commit()
                         else:
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT ''"))
-                            conn.execute(text(f"UPDATE users SET {col} = '' WHERE {col} IS NULL"))
-                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
+                            # Check and add missing columns
+                            columns_result = conn.execute(text("""
+                                SELECT column_name FROM information_schema.columns 
+                                WHERE table_name = 'users' AND table_schema = 'public'
+                            """))
+                            existing_columns = {row[0] for row in columns_result}
+                            print(f"📋 Existing columns: {sorted(existing_columns)}")
+                            
+                            # Handle problematic columns if they exist
+                            problematic_columns = ['username', 'hashed_password']
+                            for col in problematic_columns:
+                                if col in existing_columns:
+                                    try:
+                                        conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} DROP NOT NULL"))
+                                        print(f"✅ Fixed {col} constraint")
+                                    except Exception as e:
+                                        print(f"⚠️ Could not fix {col}: {e}")
+                            
+                            required_columns = ['first_name', 'last_name', 'email', 'hashed_pin', 'created_at']
+                            
+                            for col in required_columns:
+                                if col not in existing_columns:
+                                    print(f"➕ Adding missing column: {col}")
+                                    try:
+                                        if col in ['first_name', 'last_name']:
+                                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'Unknown'"))
+                                            conn.execute(text(f"UPDATE users SET {col} = 'Unknown' WHERE {col} IS NULL"))
+                                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
+                                        elif col == 'created_at':
+                                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                                        elif col == 'hashed_pin':
+                                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT 'temp_hash'"))
+                                            conn.execute(text(f"UPDATE users SET {col} = 'temp_hash' WHERE {col} IS NULL"))
+                                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
+                                        else:
+                                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR DEFAULT ''"))
+                                            conn.execute(text(f"UPDATE users SET {col} = '' WHERE {col} IS NULL"))
+                                            conn.execute(text(f"ALTER TABLE users ALTER COLUMN {col} SET NOT NULL"))
+                                    except Exception as col_error:
+                                        print(f"⚠️ Could not add {col}: {col_error}")
+                            
+                            trans.commit()
+                            print("✅ Schema verification completed")
+                    except Exception as e:
+                        trans.rollback()
+                        print(f"⚠️ Schema fix error: {e}")
                 
-                trans.commit()
-                print("✅ Schema verification completed")
-            except Exception as e:
-                trans.rollback()
-                print(f"⚠️ Schema fix warning: {e}")
+                print("\n✅ Startup event completed successfully!")
+                break  # Exit retry loop on success
                 
-    except Exception as e:
-        print(f"❌ Migration error: {e}")
+            except Exception as schema_error:
+                print(f"⚠️ Schema error (will retry): {schema_error}")
+                retry_count += 1
+                if retry_count < max_retries:
+                    wait_time = 2 ** retry_count  # Exponential backoff
+                    print(f"⏳ Waiting {wait_time} seconds before retry...")
+                    time.sleep(wait_time)
+                    
+        except Exception as e:
+            print(f"❌ Startup error: {e}")
+            retry_count += 1
+            if retry_count < max_retries:
+                wait_time = 2 ** retry_count
+                print(f"⏳ Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                print(f"❌ Failed after {max_retries} attempts. Application will start but database may not be ready.")
 
 if __name__ == "__main__":
     import uvicorn
@@ -118,6 +200,27 @@ if __name__ == "__main__":
 @app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Banking App API is live!"}
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    Health check endpoint to diagnose database connectivity
+    Returns 200 if database is accessible, 503 otherwise
+    """
+    try:
+        # Try to run a simple query
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "healthy",
+            "message": "Database connection is working",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "message": f"Database connection failed: {str(e)}",
+            "database": "disconnected"
+        }, 503
 
 app.add_middleware(
     CORSMiddleware,

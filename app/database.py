@@ -15,17 +15,25 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Add SSL settings for Render's PostgreSQL
+# Add SSL settings for Render's PostgreSQL (use prefer for resilience)
 if '?' not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL + "?sslmode=require"
+    DATABASE_URL = DATABASE_URL + "?sslmode=prefer"
 elif 'sslmode' not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL + "&sslmode=require"
+    DATABASE_URL = DATABASE_URL + "&sslmode=prefer"
 
 engine = create_engine(
     DATABASE_URL, 
     pool_pre_ping=True,
     pool_recycle=3600,
-    connect_args={"connect_timeout": 10, "sslmode": "require"}
+    pool_size=5,
+    max_overflow=10,
+    connect_args={
+        "connect_timeout": 15,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    }
 )
 
 

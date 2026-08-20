@@ -2,8 +2,8 @@ services:
   - type: web
     name: banking-app-api
     env: python
-    buildCommand: pip install -r requirements.txt && alembic upgrade head
-    startCommand: gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT --timeout 120
     envVars:
       - key: DATABASE_URL
         fromDatabase:
