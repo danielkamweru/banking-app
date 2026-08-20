@@ -29,7 +29,18 @@ async def startup_event():
     try:
         # Run Alembic migrations first
         alembic_cfg = alembic.config.Config("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+        
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        
+        # Add SSL settings for Render's PostgreSQL
+        if DATABASE_URL and '?' not in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL + "?sslmode=require"
+        elif DATABASE_URL and 'sslmode' not in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL + "&sslmode=require"
+        
+        alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
         from alembic import command
         command.upgrade(alembic_cfg, "head")
         print("✅ Database migrations completed successfully")
@@ -37,11 +48,12 @@ async def startup_event():
         # Run schema fix to ensure all columns exist
         from sqlalchemy import create_engine, text
         
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-            
-        engine = create_engine(DATABASE_URL)
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            connect_args={"connect_timeout": 10, "sslmode": "require"}
+        )
         with engine.connect() as conn:
             trans = conn.begin()
             try:
