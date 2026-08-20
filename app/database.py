@@ -15,7 +15,18 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Add SSL settings for Render's PostgreSQL
+if '?' not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL + "?sslmode=require"
+elif 'sslmode' not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL + "&sslmode=require"
+
+engine = create_engine(
+    DATABASE_URL, 
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    connect_args={"connect_timeout": 10, "sslmode": "require"}
+)
 
 
 #CREATING SESSIONLOCAL
