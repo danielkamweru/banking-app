@@ -19,30 +19,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop all tables to ensure clean schema (compatible with SQLite)
-    conn = op.get_bind()
-    try:
-        conn.execute(sa.text("DROP TABLE IF EXISTS transactions"))
-    except:
-        pass
-    try:
-        conn.execute(sa.text("DROP TABLE IF EXISTS accounts"))
-    except:
-        pass
-    try:
-        conn.execute(sa.text("DROP TABLE IF EXISTS users"))
-    except:
-        pass
-    try:
-        conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
-    except:
-        pass
-    
-    # Create alembic_version table first
-    op.execute("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)")
-    op.execute("DELETE FROM alembic_version")  # Clear any existing entries
-    op.execute("INSERT INTO alembic_version (version_num) VALUES ('be811ad9421d')")
-    op.create_table('users',
+    # Alembic owns alembic_version. Never drop or write to it from a revision.
+    # Some deployments predate Alembic, so retain those application tables and
+    # create only tables that are absent.
+    existing_tables = set()
+    if not op.get_context().as_sql:
+        existing_tables = set(sa.inspect(op.get_bind()).get_table_names())
+
+    if 'users' not in existing_tables:
+        op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=False),
     sa.Column('last_name', sa.String(), nullable=False),
@@ -50,20 +35,24 @@ def upgrade() -> None:
     sa.Column('hashed_pin', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
-    op.create_table('accounts',
+        )
+        op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+        op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
+
+    if 'accounts' not in existing_tables:
+        op.create_table('accounts',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('account_number', sa.String(), nullable=True),
     sa.Column('initial_balance', sa.Float(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_accounts_account_number'), 'accounts', ['account_number'], unique=True)
-    op.create_index(op.f('ix_accounts_id'), 'accounts', ['id'], unique=False)
-    op.create_table('transactions',
+        )
+        op.create_index(op.f('ix_accounts_account_number'), 'accounts', ['account_number'], unique=True)
+        op.create_index(op.f('ix_accounts_id'), 'accounts', ['id'], unique=False)
+
+    if 'transactions' not in existing_tables:
+        op.create_table('transactions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reference_code', sa.String(), nullable=True),
     sa.Column('amount', sa.Float(), nullable=False),
@@ -74,9 +63,9 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['receiver_id'], ['accounts.id'], ),
     sa.ForeignKeyConstraint(['sender_id'], ['accounts.id'], ),
     sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_transactions_id'), 'transactions', ['id'], unique=False)
-    op.create_index(op.f('ix_transactions_reference_code'), 'transactions', ['reference_code'], unique=True)
+        )
+        op.create_index(op.f('ix_transactions_id'), 'transactions', ['id'], unique=False)
+        op.create_index(op.f('ix_transactions_reference_code'), 'transactions', ['reference_code'], unique=True)
     # ### end Alembic commands ###
 
 
